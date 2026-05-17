@@ -98,8 +98,6 @@ def apply(X: List):
         name = current_domain[i]['name']
         vartype = current_domain[i]['type']
 
-        # raise RuntimeError("X is not for cut spaces")
-
         # fill config path based on name
         internal_path = name.split('.')
         parts = internal_path[-1].split('|')
@@ -107,30 +105,27 @@ def apply(X: List):
         internal_path[-1] = parts[0]
 
         cfg = configs[index][0]
-        # print(internal_path)
-        # print(internal_path[0])
-        link = cfg[internal_path[0]]
-        for j in range(1, len(internal_path)):
-            link = link[internal_path[j]]
+        # спускаемся до РОДИТЕЛЯ нужного ключа, чтобы потом записать parent[key] = ...
+        # (раньше тут было `link = link[...]` + `link = X[i]`, что не модифицировало dict)
+        parent = cfg[internal_path[0]]
+        for j in range(1, len(internal_path) - 1):
+            parent = parent[internal_path[j]]
+        key = internal_path[-1]
 
         if len(parts) == 1:
-            link = X[i]
+            parent[key] = X[i]
         else:
-            value = X[i]
             if vartype == 'continuous':
                 value = float(X[i])
             elif vartype == 'discrete':
                 value = int(X[i])
             else:
-                pass
-
-            link = str(value) + parts[1]
+                value = X[i]
+            parent[key] = f"{value}{parts[1]}"
 
     for cfg, path in configs:
         with open(path, 'w') as f:
             yaml.dump(cfg, f, default_flow_style=False)
-
-    pass
 
 def transform_domain(domain: List) -> List:
     """

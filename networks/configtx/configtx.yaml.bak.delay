@@ -1,0 +1,180 @@
+Application:
+  Capabilities:
+    V2_5: true
+  Organizations: null
+  Policies: &id006
+    Admins:
+      Rule: MAJORITY Admins
+      Type: ImplicitMeta
+    Endorsement:
+      Rule: MAJORITY Endorsement
+      Type: ImplicitMeta
+    LifecycleEndorsement:
+      Rule: MAJORITY Endorsement
+      Type: ImplicitMeta
+    Readers:
+      Rule: ANY Readers
+      Type: ImplicitMeta
+    Writers:
+      Rule: ANY Writers
+      Type: ImplicitMeta
+Capabilities:
+  Application: &id001
+    V2_5: true
+  Channel:
+    V2_0: true
+  Orderer: &id010
+    V2_0: true
+Channel:
+  Capabilities: &id007
+    V2_0: true
+  Policies: &id013
+    Admins:
+      Rule: MAJORITY Admins
+      Type: ImplicitMeta
+    Readers:
+      Rule: ANY Readers
+      Type: ImplicitMeta
+    Writers:
+      Rule: ANY Writers
+      Type: ImplicitMeta
+Orderer:
+  Addresses: &id008
+  - orderer.example.com:7050
+  BatchSize: &id009
+    AbsoluteMaxBytes: 99 MB
+    MaxMessageCount: 10
+    PreferredMaxBytes: 512 KB
+  BatchTimeout: 2s
+  Organizations: null
+  Policies: &id012
+    Admins:
+      Rule: MAJORITY Admins
+      Type: ImplicitMeta
+    BlockValidation:
+      Rule: ANY Writers
+      Type: ImplicitMeta
+    Readers:
+      Rule: ANY Readers
+      Type: ImplicitMeta
+    Writers:
+      Rule: ANY Writers
+      Type: ImplicitMeta
+Organizations:
+- &id011
+  ID: OrdererMSP
+  MSPDir: ../organizations/ordererOrganizations/example.com/msp
+  Name: OrdererOrg
+  OrdererEndpoints:
+  - orderer.example.com:7050
+  Policies:
+    Admins:
+      Rule: OR('OrdererMSP.admin')
+      Type: Signature
+    Readers:
+      Rule: OR('OrdererMSP.member')
+      Type: Signature
+    Writers:
+      Rule: OR('OrdererMSP.member')
+      Type: Signature
+- &id002
+  ID: Org1MSP
+  MSPDir: ../organizations/peerOrganizations/org1.example.com/msp
+  Name: Org1MSP
+  Policies:
+    Admins:
+      Rule: OR('Org1MSP.admin')
+      Type: Signature
+    Endorsement:
+      Rule: OR('Org1MSP.peer')
+      Type: Signature
+    Readers:
+      Rule: OR('Org1MSP.admin', 'Org1MSP.peer', 'Org1MSP.client')
+      Type: Signature
+    Writers:
+      Rule: OR('Org1MSP.admin', 'Org1MSP.client')
+      Type: Signature
+- &id003
+  ID: Org2MSP
+  MSPDir: ../organizations/peerOrganizations/org2.example.com/msp
+  Name: Org2MSP
+  Policies:
+    Admins:
+      Rule: OR('Org2MSP.admin')
+      Type: Signature
+    Endorsement:
+      Rule: OR('Org2MSP.peer')
+      Type: Signature
+    Readers:
+      Rule: OR('Org2MSP.admin', 'Org2MSP.peer', 'Org2MSP.client')
+      Type: Signature
+    Writers:
+      Rule: OR('Org2MSP.admin', 'Org2MSP.client')
+      Type: Signature
+- &id004
+  ID: Org3MSP
+  MSPDir: ../organizations/peerOrganizations/org3.example.com/msp
+  Name: Org3MSP
+  Policies:
+    Admins:
+      Rule: OR('Org3MSP.admin')
+      Type: Signature
+    Endorsement:
+      Rule: OR('Org3MSP.peer')
+      Type: Signature
+    Readers:
+      Rule: OR('Org3MSP.admin', 'Org3MSP.peer', 'Org3MSP.client')
+      Type: Signature
+    Writers:
+      Rule: OR('Org3MSP.admin', 'Org3MSP.client')
+      Type: Signature
+- &id005
+  ID: Org4MSP
+  MSPDir: ../organizations/peerOrganizations/org4.example.com/msp
+  Name: Org4MSP
+  Policies:
+    Admins:
+      Rule: OR('Org4MSP.admin')
+      Type: Signature
+    Endorsement:
+      Rule: OR('Org4MSP.peer')
+      Type: Signature
+    Readers:
+      Rule: OR('Org4MSP.admin', 'Org4MSP.peer', 'Org4MSP.client')
+      Type: Signature
+    Writers:
+      Rule: OR('Org4MSP.admin', 'Org4MSP.client')
+      Type: Signature
+Profiles:
+  ChannelUsingRaft:
+    Application:
+      Capabilities: *id001
+      Organizations:
+      - *id002
+      - *id003
+      - *id004
+      - *id005
+      Policies: *id006
+    Capabilities: *id007
+    Orderer:
+      Addresses: *id008
+      BatchSize: *id009
+      BatchTimeout: 2s
+      Capabilities: *id010
+      EtcdRaft:
+        Consenters:
+        - ClientTLSCert: ../organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+          Host: orderer.example.com
+          Port: 7050
+          ServerTLSCert: ../organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+        Options:
+          ElectionTick: 10
+          HeartbeatTick: 1
+          MaxInflightBlocks: 5
+          SnapshotIntervalSize: 16 MB
+          TickInterval: 500ms
+      OrdererType: etcdraft
+      Organizations:
+      - *id011
+      Policies: *id012
+    Policies: *id013

@@ -3,7 +3,8 @@ bs4
 scikit-optimize
 line_profiler
 pyyaml
-pySOT
+pySOT==0.3.3
+six
 gpyopt
 pyDOE
 scikit-learn==1.6.1
