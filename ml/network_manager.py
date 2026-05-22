@@ -83,39 +83,77 @@ def calculate_average_tps(json_file):
         return None
 
 
-# Каноничные ключи для TPS по раундам — стабильны между прогонами и удобны для CSV
-ROUND_LABEL_TO_KEY = {
-    "Create a car.":     "tps_create",
-    "Change car owner.": "tps_change",
-    "Query all cars.":   "tps_query_all",
-    "Query a car.":      "tps_query_one",
+# Каноничные ключи раундов — стабильны между прогонами и удобны для CSV
+ROUND_LABEL_TO_SHORT = {
+    "Create a car.":     "create",
+    "Change car owner.": "change",
+    "Query all cars.":   "query_all",
+    "Query a car.":      "query_one",
 }
-ROUND_KEYS = list(ROUND_LABEL_TO_KEY.values()) + ["tps_avg"]
+ROUND_SHORTS = list(ROUND_LABEL_TO_SHORT.values())
+
+# Совместимость со старым API
+ROUND_LABEL_TO_KEY = {lbl: f"tps_{s}" for lbl, s in ROUND_LABEL_TO_SHORT.items()}
+ROUND_KEYS = [f"tps_{s}" for s in ROUND_SHORTS] + ["tps_avg"]
+
+# Полный список метрик, которые умеем парсить из report.json (Caliper 0.5.0)
+METRIC_LABEL_TO_PREFIX = {
+    "Throughput (TPS)": "tps",
+    "Avg Latency (s)":  "lat_avg",
+    "Max Latency (s)":  "lat_max",
+    "Min Latency (s)":  "lat_min",
+}
+
+
+def _parse_float(value):
+    """Caliper иногда пишет '-' / 'NaN' / пустую строку. Превращаем в NaN."""
+    if value is None:
+        return float("nan")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("nan")
 
 
 def calculate_round_tps(json_file) -> dict:
     """Парсит report.json и возвращает dict с TPS по каждому раунду + tps_avg.
 
-    Возвращаемые ключи строго фиксированы: tps_create, tps_change,
+    Сохранено для обратной совместимости. Ключи: tps_create, tps_change,
     tps_query_all, tps_query_one, tps_avg. Если раунда нет в отчёте — NaN.
     """
-    result = {k: float("nan") for k in ROUND_KEYS}
+    full = calculate_round_metrics(json_file)
+    out = {k: full.get(k, float("nan")) for k in ROUND_KEYS}
+    return out
+
+
+def calculate_round_metrics(json_file) -> dict:
+    """Парсит report.json и возвращает плоский dict со всеми метриками по раундам.
+
+    Ключи формата '<prefix>_<round>' для каждой комбинации:
+      prefix: tps, lat_avg, lat_max, lat_min
+      round:  create, change, query_all, query_one
+    Плюс tps_avg = среднее tps по всем раундам, для которых TPS известен.
+    Если раунда/поля нет в отчёте — NaN.
+    """
+    result = {
+        f"{prefix}_{short}": float("nan")
+        for prefix in METRIC_LABEL_TO_PREFIX.values()
+        for short in ROUND_SHORTS
+    }
+    result["tps_avg"] = float("nan")
+
     try:
         with open(json_file, "r", encoding="utf-8") as f:
             data = json.load(f)
         metrics = data.get("metrics", {})
-        for label, key in ROUND_LABEL_TO_KEY.items():
+        for label, short in ROUND_LABEL_TO_SHORT.items():
             row = metrics.get(label)
-            if row is None:
+            if not row:
                 continue
-            tps_str = row.get("Throughput (TPS)")
-            if tps_str is None:
-                continue
-            try:
-                result[key] = float(tps_str)
-            except ValueError:
-                continue
-        present = [v for v in (result[k] for k in ROUND_LABEL_TO_KEY.values()) if v == v]
+            for caliper_key, prefix in METRIC_LABEL_TO_PREFIX.items():
+                result[f"{prefix}_{short}"] = _parse_float(row.get(caliper_key))
+        tps_vals = [result[f"tps_{s}"] for s in ROUND_SHORTS]
+        present = [v for v in tps_vals if v == v]
         if present:
             result["tps_avg"] = sum(present) / len(present)
     except Exception as e:
@@ -139,3 +177,15 @@ def observe_round_tps() -> dict:
         "../caliper-benchmarks/report.json",
     )
     return calculate_round_tps("../caliper-benchmarks/report.json")
+
+
+def observe_round_metrics() -> dict:
+    """TPS + latency (avg/max/min) по каждому раунду + tps_avg.
+
+    Возвращает плоский dict с ключами '<prefix>_<round>' (см. calculate_round_metrics).
+    """
+    transform_caliper_html_to_json(
+        "../caliper-benchmarks/report.html",
+        "../caliper-benchmarks/report.json",
+    )
+    return calculate_round_metrics("../caliper-benchmarks/report.json")
